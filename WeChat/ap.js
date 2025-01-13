@@ -1,27 +1,11 @@
 let socket;
 let username;
 
-document.getElementById('joinBtn').addEventListener('click', () => {
-  username = document.getElementById('username').value.trim();
-  if (username) {
-    connectToServer();
-    document.getElementById('username').disabled = true;
-    document.getElementById('joinBtn').disabled = true;
-    updateConnectionStatus("Connecting...");
-  } else {
-    alert("Please enter a valid username.");
-  }
-});
+// Event listener for the Join button
+document.getElementById('joinBtn').addEventListener('click', handleJoin);
 
-document.getElementById('sendMessageBtn').addEventListener('click', () => {
-  const message = document.getElementById('message').value.trim();
-  if (message && socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(`${username}: ${message}`);
-    document.getElementById('message').value = ''; // clear input field
-  } else {
-    alert("Please enter a message or wait for the connection to be established.");
-  }
-});
+// Event listener for the Send Message button
+document.getElementById('sendMessageBtn').addEventListener('click', handleSendMessage);
 
 // Update connection status on the page
 function updateConnectionStatus(status) {
@@ -31,36 +15,74 @@ function updateConnectionStatus(status) {
   }
 }
 
+// Handle user joining the chat
+function handleJoin() {
+  username = document.getElementById('username').value.trim();
+  if (!username) {
+    alert("Please enter a valid username.");
+    return;
+  }
+
+  connectToServer();
+  toggleInputFields(true);
+  updateConnectionStatus("Connecting...");
+}
+
+// Handle sending messages
+function handleSendMessage() {
+  const message = document.getElementById('message').value.trim();
+  if (!message) {
+    alert("Please enter a message.");
+    return;
+  }
+
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(`${username}: ${message}`);
+    document.getElementById('message').value = ''; // Clear input field
+  } else {
+    alert("Cannot send message. Ensure the connection is established.");
+  }
+}
+
+// Toggle input fields and buttons
+function toggleInputFields(disable) {
+  document.getElementById('username').disabled = disable;
+  document.getElementById('joinBtn').disabled = disable;
+}
+
+// Connect to the WebSocket server
 function connectToServer() {
-  // Create a WebSocket connection to the server
-  socket = new WebSocket('ws://localhost:8080'); // assuming the WebSocket server is running on port 8080
+  socket = new WebSocket('ws://localhost:8080');
 
   socket.onopen = () => {
-    console.log("Connected to the server");
+    console.log("Connected to the server.");
     updateConnectionStatus("Connected to the server.");
-    // Send the username to the server
-    socket.send(username);
+    socket.send(username); // Send username to the server
   };
 
   socket.onmessage = (event) => {
-    const chatBox = document.getElementById('chatBox');
-    const newMessage = document.createElement('div');
-    newMessage.textContent = event.data;
-    chatBox.appendChild(newMessage);
-    chatBox.scrollTop = chatBox.scrollHeight; // scroll to the bottom
+    displayMessage(event.data);
   };
 
   socket.onerror = (error) => {
-    console.error("WebSocket error: ", error);
+    console.error("WebSocket error:", error);
     updateConnectionStatus("Error: Unable to connect.");
     alert("Connection error. Please try again later.");
+    toggleInputFields(false);
   };
 
   socket.onclose = () => {
-    console.log("Connection closed");
+    console.log("Connection closed.");
     updateConnectionStatus("Disconnected from the server.");
-    // Re-enable the join button and username input for rejoining
-    document.getElementById('username').disabled = false;
-    document.getElementById('joinBtn').disabled = false;
+    toggleInputFields(false); // Re-enable inputs for rejoining
   };
+}
+
+// Display a new message in the chat box
+function displayMessage(message) {
+  const chatBox = document.getElementById('chatBox');
+  const newMessage = document.createElement('div');
+  newMessage.textContent = message;
+  chatBox.appendChild(newMessage);
+  chatBox.scrollTop = chatBox.scrollHeight; // Scroll to the bottom
 }
